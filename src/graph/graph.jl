@@ -85,6 +85,10 @@ function graph_from_json(
     nodes = raw_graph["nodes"]
     num_nodes = length(nodes)
 
+    # get node_attributes
+    node_attributes = get_node_attributes(nodes, inc_node_data)
+    id2Index = Dict(na["id"]=>ii for (ii,na) in enumerate(node_attributes))
+    
     # get populations
     populations = get_attribute_by_key(nodes, pop_col)
     total_pop = sum(populations)
@@ -93,17 +97,19 @@ function graph_from_json(
     simple_graph = SimpleWeightedGraph(num_nodes)
     for (index, edges) in enumerate(raw_graph["adjacency"])
         for edge in edges
-            if edge["id"] + 1 > index
-                add_edge!(simple_graph, index, edge["id"] + 1)
+            dest_id = edge["id"]
+            dest_index = id2Index[dest_id]
+            if dest_index > index
+                add_edge!(simple_graph, index, dest_index)
             end
         end
     end
 
     num_edges = ne(simple_graph)
 
-    # get attributes
-    node_attributes = get_node_attributes(nodes, inc_node_data)
-    edge_attributes = get_edge_attributes(raw_graph["adjacency"])
+    # get edges attributes
+    edge_attributes = get_edge_attributes(raw_graph["adjacency"], 
+                                          id2Index)
 
     for e in edges(simple_graph)
         weight = edge_attributes[Set([src(e), dst(e)])][edge_weights]
@@ -199,6 +205,9 @@ the attributes of the `nodes[i]` is at `attributes[i]` as a dictionary.
 function get_node_attributes(nodes::Array{Any,1}, inc::Set{String}=Set())
     attributes = Array{Dict{String,Any}}(undef, length(nodes))
 
+    if haskey(nodes[1], "id")
+        push!(inc, "id")
+    end
     for (index, node) in enumerate(nodes)
         if length(inc) != 0
             filter!(p -> p.first in inc, node)
@@ -207,17 +216,21 @@ function get_node_attributes(nodes::Array{Any,1}, inc::Set{String}=Set())
     end
 
     return attributes
-
 end
 
 """-"""
-function get_edge_attributes(adjacency::Array{Any,1})
+function get_edge_attributes(
+    adjacency::Array{Any,1},
+    id2Index::Dict
+)
     attributes = Dict{Set{Int}, Dict{String,Any}}()
 
     for (index, edges) in enumerate(adjacency)
         for edge in edges
-            if edge["id"] + 1 > index
-                key = Set([index, edge["id"] + 1])
+            dest_id = edge["id"]
+            dest_index = id2Index[dest_id]
+            if dest_index > index
+                key = Set([index, dest_index])
                 e = deepcopy(edge)
                 delete!(e, "id")
                 if "connections" ∉ keys(e)
