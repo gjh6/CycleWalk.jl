@@ -1,5 +1,6 @@
 include("./graph.jl")
 
+
 struct MultiLevelGraph #<: AbstractGraph
     num_levels::Int
     levels::Vector{String}
@@ -10,6 +11,8 @@ struct MultiLevelGraph #<: AbstractGraph
     partition_to_ids::Vector{Dict{Tuple{Vararg{String}},Int}}
     graphs_by_level::Vector{BaseGraph}             # the graphs at each level
 end
+
+const Graph = MultiLevelGraph
 
 """"""
 function edge_weight(
@@ -543,8 +546,11 @@ end
 """"""
 function MultiLevelGraph(
     base_graph::BaseGraph,
-    levels::Vector{String}
+    levels::Union{String, Vector{String}}
 )#::MultiLevelGraph
+    if typeof(levels) <: String
+        levels = [levels]
+    end
     num_levels = length(levels)
     id_to_partitions = Vector{Vector{Tuple{Vararg{String}}}}(undef,
                                                              num_levels)
@@ -600,6 +606,13 @@ function MultiLevelGraph(
         end
     end
 
+    if ((base_graph.num_nodes!=length(id_to_partitions[end])) ||
+        (base_graph.num_nodes!=length(keys(partition_to_ids[end]))))
+        println("Base graph not recovered level label.")
+        println(" Possibly due to non-unique label")
+        @assert false
+    end
+
     return MultiLevelGraph(
         num_levels,
         levels,
@@ -610,6 +623,39 @@ function MultiLevelGraph(
         partition_to_ids,
         graphs_by_level
     )
+end
+"""
+"""
+function MultiLevelGraph(
+    filepath::AbstractString,
+    pop_col::AbstractString,
+    levels::Union{String, Vector{String}};
+    inc_node_data::Set{String}=Set(),
+    edge_weights::String="connections",
+    bpop_col=nothing,
+    vap_col=nothing,
+    bvap_col=nothing,
+    area_col=nothing,
+    node_border_col=nothing,
+    edge_perimeter_col=nothing,
+    oriented_nbrs_col=nothing,
+    mcd_col=nothing,
+    adjacency::String="rook"
+)
+
+    base_graph = BaseGraph(filepath, pop_col,
+                    inc_node_data=inc_node_data,
+                    edge_weights=edge_weights,
+                    bpop_col=bpop_col,
+                    vap_col=vap_col,
+                    bvap_col=bvap_col,
+                    area_col=area_col,
+                    node_border_col=node_border_col,
+                    edge_perimeter_col=edge_perimeter_col,
+                    oriented_nbrs_col=oriented_nbrs_col,
+                    mcd_col=mcd_col,
+                    adjacency=adjacency)
+    return MultiLevelGraph(base_graph, levels)
 end
 """
 compute total connection from edge_weights
@@ -762,37 +808,5 @@ end
 """"""
 function get_subgraph_population(graph::MultiLevelGraph, nodes::BitSet)::Int
     print("TODO")
-end
-
-"""""" 
-function build_graph(
-    filepath::AbstractString,
-    pop_col::AbstractString,
-    id_col::AbstractString,
-    inc_node_data::Set{String}=Set();
-    edge_weights::String="connections",
-    bpop_col=nothing,
-    vap_col=nothing,
-    bvap_col=nothing,
-    area_col=nothing,
-    node_border_col=nothing,
-    edge_perimeter_col=nothing,
-    oriented_nbrs_col=nothing,
-    mcd_col=nothing,
-    adjacency::String="rook"
-)
-    base_graph = BaseGraph(filepath, pop_col, 
-                           inc_node_data=inc_node_data,
-                           edge_weights=edge_weights,
-                           bpop_col=bpop_col,
-                           vap_col=vap_col,
-                           bvap_col=bvap_col,
-                           area_col=area_col,
-                           node_border_col=node_border_col,
-                           edge_perimeter_col=edge_perimeter_col,
-                           oriented_nbrs_col=oriented_nbrs_col,
-                           mcd_col=mcd_col,
-                           adjacency=adjacency)
-    return MultiLevelGraph(base_graph, [id_col])
 end
 

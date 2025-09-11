@@ -17,6 +17,7 @@ export AbstractGraph,
     BaseGraph,
     modify_edge_weights!,
     #
+    Graph,
     MultiLevelGraph,
     MultiLevelPartition,
     edge_weight,
