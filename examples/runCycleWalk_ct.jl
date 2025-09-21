@@ -3,7 +3,7 @@
 
 ## Activate the CycleWalk environment  and load necessary packages
 import Pkg
-Pkg.activate("./runCycleWalkEnv")
+Pkg.activate(".")
 Pkg.instantiate()
 
 using RandomNumbers
