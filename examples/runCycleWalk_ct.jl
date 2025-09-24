@@ -26,7 +26,11 @@ outfreq = Int(1000/twocycle_frac)
 ## build graph
 pctGraphPath = joinpath("data","ct","CT_pct20.json")
 nodeData = Set(["COUNTY", "NAME", "POP20", "area", "border_length"]);
-graph = build_graph(pctGraphPath, "POP20", "NAME", nodeData;
+#graph = build_graph(pctGraphPath, "POP20", "NAME", nodeData;
+#              area_col="area", node_border_col="border_length", 
+#              edge_perimeter_col="length")
+
+graph = Graph(pctGraphPath, "POP20", "NAME"; inc_node_data=nodeData,
               area_col="area", node_border_col="border_length", 
               edge_perimeter_col="length")
 
