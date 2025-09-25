@@ -37,7 +37,7 @@ function Writer(
     end
 
     f = @__FILE__
-    projdir = "/"*joinpath(split(f, "/")[1:end-1])
+    #projdir = "/"*joinpath(split(f, "/")[1:end-1])
     versionNumber = pkgversion(CycleWalk)
     versionString = string(versionNumber)
     atlasParam["package.version"] = "CycleWalk v"*versionString
