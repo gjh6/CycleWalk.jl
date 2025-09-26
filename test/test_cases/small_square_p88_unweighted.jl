@@ -3,7 +3,8 @@ name = "small square test graph (unweighted), 4 districts, pop=8, gamma∈{0,1}"
     constraints = initialize_constraints()
     add_constraint!(constraints, PopulationConstraint(4,4))
 
-    observed_cuts = get_observed_cut_edges(small_square_graph, constraints, 4)
+    observed_cuts = get_observed_cut_edges(small_square_graph, constraints, 4,
+                                           cycle_steps=100_000)
 
     # check that the observed districts cut counts are correct 
     @test length(values(observed_cuts)) == 4

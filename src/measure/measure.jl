@@ -20,7 +20,6 @@ function push_energy!(
     weight::Real;
     desc::String=""
 )
-    weight == 0 && return 
     @assert keys(measure.weights) == measure.scores
     @assert keys(measure.descriptions) == measure.scores
     push!(measure.scores, score)
@@ -39,17 +38,17 @@ function get_delta_energy(
 ) where T <: Int
     score = 0
     changed_districts = update.changed_districts
-    # @show get_log_energy(partition, measure, changed_districts)
-    # @show get_log_energy(partition, measure, changed_districts, update)
+    # @show get_energy(partition, measure, changed_districts)
+    # @show get_energy(partition, measure, changed_districts, update)
     # @show changed_districts
-    score += get_log_energy(partition, measure, changed_districts)
-    score -= get_log_energy(partition, measure, changed_districts, update)
+    score += get_energy(partition, measure, changed_districts)
+    score -= get_energy(partition, measure, changed_districts, update)
     # @show score, exp(score)
     return exp(score)
 end
 
 """"""
-function get_log_energy(
+function get_energy(
     partition::LinkCutPartition, 
     measure::Measure,
     districts::Union{Tuple{Vararg{T}}, Vector{T}}

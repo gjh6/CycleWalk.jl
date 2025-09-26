@@ -7,37 +7,42 @@ function run_metropolis_hastings!(
     rng::AbstractRNG;
     writer::Union{Writer, Nothing}=nothing,
     output_freq::Int=250,
-    run_diagnostics::RunDiagnostics=RunDiagnostics()
+    run_diagnostics::RunDiagnostics=RunDiagnostics(),
+    prestepf::Function=(x...)->nothing,
+    prestepargs::Tuple=(),
+    output_initial::Bool=true,
+    weight::Union{Float64, MutableFloat}=1.0#,
+    # poststepf!::Function=(x...)->nothing,
+    # poststepargs::Tuple=()
 ) where T <: Real
     # Want this, but need to redefine it: precompute_node_tree_counts!(partition)
     check_proposals_weights(proposal)
     
     initial_step, final_step = set_step_bounds(steps)
-    if initial_step == 0 || initial_step == 1
-        output(partition, measure, initial_step, 0, writer)
+    if (initial_step == 0 || initial_step == 1) && output_initial
+        output(partition, measure, initial_step, 1, writer)
     end
 
     for step = initial_step:final_step
+        prestepf(step, prestepargs...)
         proposal!, proposal_index = get_random_proposal(proposal, rng)
         proposal_diagnostics = get_proposal_diagnostics(run_diagnostics, 
                                                         proposal!)
         p, update = proposal!(partition, rng, diagnostics=proposal_diagnostics)
         if p == 0
-            if mod(step, output_freq) == 0 && step != initial_step
-                output(partition, measure, step, 0, writer, run_diagnostics)
-            end
+            output(partition, measure, step, output_freq, writer, 
+                   run_diagnostics; weight=weight)
             continue
         end
+
         p *= get_delta_energy(partition, measure, update)
         update_acceptance_ratio_diagnostic!(proposal_diagnostics, p)
-        # post_step!(proposal_diagnostics, p, partition, measure, writer, update)
 
         if rand(rng) < p
             update_partition!(partition, update)
         end
-        if mod(step, output_freq) == 0
-            output(partition, measure, step, 0, writer, run_diagnostics)
-        end
+        output(partition, measure, step, output_freq, writer, 
+               run_diagnostics; weight=weight)
     end
 end
 

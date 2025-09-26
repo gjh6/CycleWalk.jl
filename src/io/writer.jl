@@ -113,15 +113,21 @@ end
 function output(
     partition::LinkCutPartition,
     measure::Measure,
-    step::Integer,
-    count::Int,
+    step::Int,
+    output_freq::Int,
     writer::Union{Writer, Nothing},
-    run_diagnostics::RunDiagnostics=RunDiagnostics()
+    run_diagnostics::RunDiagnostics=RunDiagnostics();
+    weight::Union{MutableFloat, Float64}=1.0,
+    count::Int=0
 )
-    if writer == nothing
+    if writer == nothing || mod(step, output_freq) != 0
         return
     end
-
+    if typeof(weight) == MutableFloat
+        weight = weight.value
+    end
+    @show weight
+    
     for (desc, f) in writer.map_output_data
         writer.map_param[desc] = f(partition)
     end
@@ -136,11 +142,12 @@ function output(
 ########## get_map() or something
     if !writer.output_districting
         d = Dict{Tuple{Vararg{String}}, Int}()
-        map = Map{MapParam}("step"*string(step-count), d, 1, writer.map_param)
+        map = Map{MapParam}("step"*string(step-count), d, weight, 
+                            writer.map_param)
     else
         map = Map{MapParam}("step"*string(step-count), 
                             get_node_map!(writer, partition), 
-                            1, writer.map_param)
+                            weight, writer.map_param)
     end
 ##########
 

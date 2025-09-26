@@ -1,3 +1,7 @@
+mutable struct MutableFloat
+    value::Float64
+end
+
 function set_all!(
 	vec::Vector, value::T = 0
 ) where {T <: Real}
