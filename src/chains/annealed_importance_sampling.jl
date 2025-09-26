@@ -41,7 +41,7 @@ function run_annealed_importance_sampling!(
         modify_measure!(measure, 0, 1)
         run_metropolis_hastings!(partition_to_anneal, proposal, measure, 
                                  steps_per_annealing, rng; writer=writer,
-                                 output_freq=steps_per_annealing*2,
+                                 output_freq=steps_per_annealing,
                                  output_initial=false,
                                  prestepf=track_weight_and_modify_measure!,
                                  prestepargs=(partition, steps_per_annealing, 
