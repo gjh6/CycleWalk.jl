@@ -56,7 +56,7 @@ function Writer(
         mkpath(dir)
     end
 
-    atlasHeader = AtlasHeader(description, time_stamp, AtlasParam, MapParam)
+    atlasHeader = AtlasHeader(description, time_stamp, AtlasParam, MapParam;weightType=Float64)
     io = smartOpen(output_file_path, io_mode)
     newAtlas(io, atlasHeader, atlasParam)
 

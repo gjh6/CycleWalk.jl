@@ -4,7 +4,7 @@
 ## Activate the CycleWalk environment  and load necessary packages
 import Pkg
 push!(LOAD_PATH, "..")
-# Pkg.activate(".")
+Pkg.activate(".")
 # Pkg.instantiate()
 
 using RandomNumbers
@@ -12,18 +12,22 @@ using CycleWalk
 
 twocycle_frac = 0.1
 base_gamma = 0.0 # 0 is spanning forest measure, 1 is partition
-target_gamma = 1.0 
+target_gamma = 0.7 
 base_iso_weight = 0.0 # weight on the sum of isoperimetric ratios; i.e. Polsby-Popper
 target_iso_weight = 0.3
 num_dists = 5
 rng = PCG.PCGStateOneseq(UInt64, 4541901234)
 pop_dev = 0.02 # population deviation (fraction from ideal)
-cycle_walk_steps = 10^3/twocycle_frac
+cycle_walk_steps = 10^4/twocycle_frac
 steps = Int(cycle_walk_steps/twocycle_frac)
 
 total_steps = steps
 base_steps_per_sample = Int(1000/twocycle_frac)
-steps_per_annealing = 100# Int(10_000/twocycle_frac)
+steps_per_annealing = 200# Int(10_000/twocycle_frac)
+#base_steps_per_sample=10
+#steps_per_annealing=20000
+#total_steps=steps_per_annealing*base_steps_per_sample
+#steps=Int(total_steps/twocycle_frac)
 
 ## build graph
 pctGraphPath = joinpath("data","ct","CT_pct20.json")
