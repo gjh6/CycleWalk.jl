@@ -9,6 +9,7 @@ mutable struct Writer
     output_districting::Bool
     node_map::Dict{Tuple{Vararg{String}}, Int}
     node_field::String
+    weight_type::DataType
 end
 
 function Writer(
@@ -20,7 +21,8 @@ function Writer(
     description::String="",
     time_stamp=string(Dates.now()),
     io_mode::String="w",
-    additional_parameters::Dict{String, Any}=Dict{String,Any}()
+    additional_parameters::Dict{String, Any}=Dict{String,Any}(),
+    weight_type::DataType=Int64
     # proposal_diagnostics::Dict=Dict()
 )
     graph = partition.graph
@@ -56,17 +58,17 @@ function Writer(
         mkpath(dir)
     end
 
-    atlasHeader = AtlasHeader(description, time_stamp, AtlasParam, MapParam;weightType=Float64)
+    atlasHeader = AtlasHeader(description, time_stamp, AtlasParam, MapParam;weightType=weight_type)
     io = smartOpen(output_file_path, io_mode)
     newAtlas(io, atlasHeader, atlasParam)
 
-    atlas = Atlas{AtlasParam}(io, description, time_stamp, atlasParam, MapParam)
+    atlas = Atlas{AtlasParam}(io, description, time_stamp, atlasParam, MapParam,weight_type)
     map_output_data = Dict{String, Function}()
 
     node_map = get_node_map(partition.node_col, partition)
 
     return Writer(atlas, MapParam(), map_output_data, output_districting, 
-                  node_map, partition.node_col)#, proposal_diagnostics)
+                  node_map, partition.node_col,weight_type)#, proposal_diagnostics)
 end
 
 function push_writer!(
@@ -126,7 +128,7 @@ function output(
     if typeof(weight) == MutableFloat
         weight = weight.value
     end
-    @show weight
+    #@show weight
     
     for (desc, f) in writer.map_output_data
         writer.map_param[desc] = f(partition)
@@ -142,10 +144,10 @@ function output(
 ########## get_map() or something
     if !writer.output_districting
         d = Dict{Tuple{Vararg{String}}, Int}()
-        map = Map{MapParam}("step"*string(step-count), d, weight, 
+        map = Map{MapParam,writer.weight_type}("step"*string(step-count), d, weight, 
                             writer.map_param)
     else
-        map = Map{MapParam}("step"*string(step-count), 
+        map = Map{MapParam,writer.weight_type}("step"*string(step-count), 
                             get_node_map!(writer, partition), 
                             weight, writer.map_param)
     end

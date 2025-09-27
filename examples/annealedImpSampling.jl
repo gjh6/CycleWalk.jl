@@ -67,7 +67,7 @@ ad_param["target_iso_weight"] = target_iso_weight
 ad_param["base_gamma"] = base_gamma
 ad_param["base_iso_weight"] = base_iso_weight
 writer = Writer(measure, constraints, partition, output_file_path; 
-                additional_parameters=ad_param)
+                additional_parameters=ad_param, weight_type=Float64)
 push_writer!(writer, get_log_spanning_trees) # add spanning trees count to writer
 push_writer!(writer, get_log_spanning_forests) # add spanning forests count to writer
 push_writer!(writer, get_isoperimetric_scores) # add isoperimetric scores to writer
