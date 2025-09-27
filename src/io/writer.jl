@@ -112,24 +112,13 @@ function get_node_map!(
 end
 
 """"""
-function output(
+function prepare_output_map_and_writer!(writer::Writer,
     partition::LinkCutPartition,
-    measure::Measure,
     step::Int,
-    output_freq::Int,
-    writer::Union{Writer, Nothing},
-    run_diagnostics::RunDiagnostics=RunDiagnostics();
-    weight::Union{MutableFloat, Float64}=1.0,
-    count::Int=0
-)
-    if writer == nothing || mod(step, output_freq) != 0
-        return
-    end
-    if typeof(weight) == MutableFloat
-        weight = weight.value
-    end
-    #@show weight
-    
+    run_diagnostics::RunDiagnostics,
+    weight::Union{MutableFloat, Float64},   # This looks like it only writes Floats now.
+    count::Int
+ )::Map
     for (desc, f) in writer.map_output_data
         writer.map_param[desc] = f(partition)
     end
@@ -151,7 +140,31 @@ function output(
                             get_node_map!(writer, partition), 
                             weight, writer.map_param)
     end
+    return map
+end
 ##########
+
+""""""
+function output(
+    partition::LinkCutPartition,
+    measure::Measure,
+    step::Int,
+    output_freq::Int,
+    writer::Union{Writer, Nothing},
+    run_diagnostics::RunDiagnostics=RunDiagnostics();
+    weight::Union{MutableFloat, Float64}=1.0,   # This looks like it only writes Floats now.
+    count::Int=0
+)
+    if writer == nothing || mod(step, output_freq) != 0
+        return
+    end
+    if typeof(weight) == MutableFloat
+        weight = weight.value
+    end
+    ##
+    map=prepare_output_map_and_writer!(writer,partition, step,
+            run_diagnostics,weight,count)
+    ##
 
     try
         addMap(writer.atlas.io, map)
