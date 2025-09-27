@@ -12,6 +12,8 @@ mutable struct Writer
     weight_type::DataType
 end
 
+
+
 function Writer(
     measure::Measure,
     constraints::Dict{Type{T} where T<:AbstractConstraint, AbstractConstraint},
@@ -69,6 +71,37 @@ function Writer(
 
     return Writer(atlas, MapParam(), map_output_data, output_districting, 
                   node_map, partition.node_col,weight_type)#, proposal_diagnostics)
+end
+
+mutable struct Batch_Writer
+    writer::Writer
+    mapChannel::Channel
+    listenerTask::Task
+end
+
+function Batch_Writer(
+    measure::Measure,
+    constraints::Dict{Type{T} where T<:AbstractConstraint, AbstractConstraint},
+    partition::LinkCutPartition,
+    output_file_path::String;
+    output_districting::Bool,
+    description::String,
+    time_stamp::String,
+    io_mode::String,
+    additional_parameters::Dict{String, Any},
+    weight_type::DataType=Int64
+    )
+    writer = Writer(measure, constraints, partition, output_file_path,output_districting,
+                    description,time_stamp,
+                    io_mode,additional_parameters,weight_type)
+    mapChannel = Channel{Map}(typemax(Int)) # buffer size of Int max
+    listenerTask = @async begin
+        
+    end
+    return Batch_Writer(writer, mapChannel, listenerTask)
+
+
+
 end
 
 function push_writer!(
