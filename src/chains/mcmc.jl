@@ -5,7 +5,7 @@ function run_metropolis_hastings!(
     measure::Measure,
     steps::Union{Int,Tuple{Int,Int}},
     rng::AbstractRNG;
-    writer::Union{Writer, Nothing}=nothing,
+    writer::Union{Writer, Async_Writer, Nothing}=nothing,
     output_freq::Int=250,
     run_diagnostics::RunDiagnostics=RunDiagnostics(),
     prestepf::Function=(x...)->nothing,

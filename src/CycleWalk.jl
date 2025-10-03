@@ -62,10 +62,15 @@ export AbstractGraph,
     Writer,
     close_writer,
     push_writer!,
+    Async_Writer,
+    Async_Batch_Writer,
+    wait,
+    close_writer,
 
     # mcmc
     run_metropolis_hastings!,
     run_annealed_importance_sampling!,
+    run_batch_annealed_importance_sampling!,
     
     # energies/observables
     Measure,

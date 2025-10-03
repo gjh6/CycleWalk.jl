@@ -18,12 +18,15 @@ target_iso_weight = 0.3
 num_dists = 5
 rng = PCG.PCGStateOneseq(UInt64, 4541901234)
 pop_dev = 0.02 # population deviation (fraction from ideal)
-cycle_walk_steps = 5*10^3/twocycle_frac
+cycle_walk_steps = 10^3/twocycle_frac
 steps = Int(cycle_walk_steps/twocycle_frac)
 
 total_steps = steps
 base_steps_per_sample = Int(200/twocycle_frac)
 steps_per_annealing = 100# Int(10_000/twocycle_frac)
+println("total_steps: ", total_steps)
+println("base_steps_per_sample: ", base_steps_per_sample)
+println("steps_per_annealing: ", steps_per_annealing)
 #base_steps_per_sample=10
 #steps_per_annealing=20000
 #total_steps=steps_per_annealing*base_steps_per_sample
@@ -66,7 +69,7 @@ ad_param["target_gamma"] = target_gamma
 ad_param["target_iso_weight"] = target_iso_weight
 ad_param["base_gamma"] = base_gamma
 ad_param["base_iso_weight"] = base_iso_weight
-writer = Async_Writer(measure, constraints, partition, output_file_path; 
+writer = Async_Batch_Writer(measure, constraints, partition, output_file_path; 
                 additional_parameters=ad_param, weight_type=Float64)
 #writer = Writer(measure, constraints, partition, output_file_path; 
 #                additional_parameters=ad_param, weight_type=Float64)
@@ -74,7 +77,7 @@ writer = Async_Writer(measure, constraints, partition, output_file_path;
 push_writer!(writer, get_log_spanning_trees) # add spanning trees count to writer
 push_writer!(writer, get_log_spanning_forests) # add spanning forests count to writer
 push_writer!(writer, get_isoperimetric_scores) # add isoperimetric scores to writer
-
+sleep(1) # give time for writer to initialize   
 ## optional run diagnostics
 # run_diagnostics = RunDiagnostics()
 # push_diagnostic!(run_diagnostics, cycle_walk, AcceptanceRatios(), 
@@ -94,7 +97,7 @@ function modify_measure!(
 end
 
 println("running annealed importance sampling; outputting here: "*output_file_path)
-@time run_annealed_importance_sampling!(partition, proposal, measure, modify_measure!, 
+@time run_batch_annealed_importance_sampling!(partition, proposal, measure, modify_measure!, 
                                   total_steps, base_steps_per_sample, 
                                   steps_per_annealing, rng; writer=writer)
 #wait(writer)

@@ -1,8 +1,11 @@
+using Base.Threads
 
 AtlasParam=Dict{String, Any}
 MapParam=Dict{String, Any}
 
-mutable struct Writer
+abstract type AbstractWriter end
+
+mutable struct Writer <: AbstractWriter
     atlas::Atlas{AtlasParam}
     map_param::MapParam
     map_output_data::Dict{String, Function}
@@ -12,7 +15,17 @@ mutable struct Writer
     weight_type::DataType
 end
 
+mutable struct Async_Writer <: AbstractWriter
+    writer::Writer
+    mapChannel::Channel
+    listenerTask::Task
+end
 
+mutable struct Async_Batch_Writer <: AbstractWriter
+    writer::Writer
+    mapChannel::Channel
+    listenerTask::Task
+end
 
 function Writer(
     measure::Measure,
@@ -73,35 +86,100 @@ function Writer(
                   node_map, partition.node_col,weight_type)#, proposal_diagnostics)
 end
 
-mutable struct Batch_Writer
-    writer::Writer
-    mapChannel::Channel
-    listenerTask::Task
+
+
+
+function asyncListener(writer::Writer, mapChannel::Channel)
+    
+    for map in mapChannel
+        try
+            addMap(writer.atlas.io, map)
+        catch e
+            @show writer.map_param
+            println("Could not add map to atlas:", e)
+            @assert false
+        end
+    end
+
 end
 
-function Batch_Writer(
+function asyncBatchListener(writer::Writer, mapChannel::Channel)
+    println("Starting batch listener")
+    for (ii,mapArray) in mapChannel
+        println("Received batch of size ", length(mapArray)," for batch ", ii )
+        #@show mapArray
+        fetch.(mapArray)
+        for map in mapArray
+            println("Adding map to atlas")
+            try
+                addMap(writer.atlas.io, map)
+            catch e
+                @show writer.map_param
+                println("Could not add map to atlas:", e)
+                @assert false
+            end
+        end
+    end
+
+end
+
+function wait(aw::Async_Writer)
+    wait(aw.listenerTask)
+end
+
+function wait(aw::Async_Batch_Writer)
+    wait(aw.listenerTask)
+end
+
+
+function Async_Writer(
     measure::Measure,
     constraints::Dict{Type{T} where T<:AbstractConstraint, AbstractConstraint},
     partition::LinkCutPartition,
     output_file_path::String;
-    output_districting::Bool,
-    description::String,
-    time_stamp::String,
-    io_mode::String,
-    additional_parameters::Dict{String, Any},
+    output_districting=true,
+    description::String="",
+    time_stamp=string(Dates.now()),
+    io_mode::String="w",
+    additional_parameters::Dict{String, Any}=Dict{String,Any}(),
     weight_type::DataType=Int64
     )
-    writer = Writer(measure, constraints, partition, output_file_path,output_districting,
-                    description,time_stamp,
-                    io_mode,additional_parameters,weight_type)
-    mapChannel = Channel{Map}(typemax(Int)) # buffer size of Int max
+    writer=Writer(measure, constraints, partition, output_file_path;output_districting=output_districting,
+                    description=description,time_stamp=time_stamp,
+                    io_mode=io_mode,additional_parameters=additional_parameters,weight_type=weight_type)
+    mapChannel = Channel(Threads.nthreads()) # buffer size of Int max
     listenerTask = @async begin
-        
+        @spawn asyncListener(writer, mapChannel)
     end
-    return Batch_Writer(writer, mapChannel, listenerTask)
+    return Async_Writer(writer, mapChannel, listenerTask)
 
+end
 
+function Async_Batch_Writer(
+    measure::Measure,
+    constraints::Dict{Type{T} where T<:AbstractConstraint, AbstractConstraint},
+    partition::LinkCutPartition,
+    output_file_path::String;
+    output_districting=true,
+    description::String="",
+    time_stamp=string(Dates.now()),
+    io_mode::String="w",
+    additional_parameters::Dict{String, Any}=Dict{String,Any}(),
+    weight_type::DataType=Int64
+    )
+    writer=Writer(measure, constraints, partition, output_file_path;output_districting=output_districting,
+                    description=description,time_stamp=time_stamp,
+                    io_mode=io_mode,additional_parameters=additional_parameters,weight_type=weight_type)
+    mapChannel = Channel(4) # buffer size of Int max
+    listenerTask = @async begin
+        @spawn asyncBatchListener(writer, mapChannel)
+    end
+    return Async_Batch_Writer(writer, mapChannel, listenerTask)
 
+end
+
+function wait(writer::Writer)
+    return
 end
 
 function push_writer!(
@@ -117,6 +195,18 @@ end
 
 function close_writer(writer::Writer)
     close(writer.atlas.io)
+end
+
+function close_writer(aw::Async_Writer)
+    close(aw.mapChannel)
+    Base.wait(aw.listenerTask)
+    close_writer(aw.writer)
+end
+
+function close_writer(aw::Async_Batch_Writer)
+    close(aw.mapChannel)
+    Base.wait(aw.listenerTask)
+    close_writer(aw.writer)
 end
 
 function get_node_map(
@@ -136,6 +226,23 @@ function get_node_map(
     return node_map
 end
 
+push_writer!(writer::Async_Writer,
+    get_data::Function; 
+    desc::Union{String, Nothing}=nothing
+) = push_writer!(writer.writer, get_data; desc=desc);
+
+push_writer!(writer::Async_Batch_Writer,
+    get_data::Function; 
+    desc::Union{String, Nothing}=nothing
+) = push_writer!(writer.writer, get_data; desc=desc);
+
+
+function get_node_map!(
+    writer::Async_Writer, 
+    partition::LinkCutPartition
+)
+    return get_node_map(writer.writer.node_field, partition, writer.writer.node_map)
+end
 
 function get_node_map!(
     writer::Writer, 
@@ -209,4 +316,50 @@ function output(
         @assert false
     end
     reset_diagnostics!(run_diagnostics)
+end
+
+#####
+
+""""""
+function output(
+    partition::LinkCutPartition,
+    measure::Measure,
+    step::Int,
+    output_freq::Int,
+    async_writer::Async_Writer,
+    run_diagnostics::RunDiagnostics=RunDiagnostics();
+    weight::Union{MutableFloat, Float64}=1.0,   # This looks like it only writes Floats now.
+    count::Int=0
+)
+
+    if typeof(weight) == MutableFloat
+        weight = weight.value
+    end
+        ##
+    map=prepare_output_map_and_writer!(async_writer.writer,partition, step,
+            run_diagnostics,weight,count)
+
+    put!(async_writer.mapChannel, map)
+end
+
+""""""
+function return_map(
+    partition::LinkCutPartition,
+    measure::Measure,
+    step::Int,
+    output_freq::Int,
+    async_writer::Async_Writer,
+    run_diagnostics::RunDiagnostics=RunDiagnostics();
+    weight::Union{MutableFloat, Float64}=1.0,   # This looks like it only writes Floats now.
+    count::Int=0
+)
+
+    if typeof(weight) == MutableFloat
+        weight = weight.value
+    end
+        ##
+    map=prepare_output_map_and_writer!(async_writer.writer,partition, step,
+            run_diagnostics,weight,count)
+
+    return map
 end
